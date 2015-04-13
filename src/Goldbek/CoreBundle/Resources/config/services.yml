@@ -1,1 +1,5 @@
 services:
+    core.command.generate_print_sheet:
+        class: Goldbek\CoreBundle\Command\GeneratePrintSheetCommand
+        tags:
+            -  { name: console.command }
