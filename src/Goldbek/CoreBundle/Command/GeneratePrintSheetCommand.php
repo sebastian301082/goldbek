@@ -1,6 +1,8 @@
 <?php
 namespace Goldbek\CoreBundle\Command;
 
+use fpdi\FPDI;
+use Goldbek\CoreBundle\Exception\FileNotReadableException;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -9,11 +11,6 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class GeneratePrintSheetCommand extends BaseCommand
 {
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
     protected function configure()
     {
         $this
@@ -34,10 +31,80 @@ class GeneratePrintSheetCommand extends BaseCommand
     {
         $output->writeln('Start generating');
 
-        //TODO Fill with logic
+        $pageWidth = 460;
+        $pageHeight = 320;
+
+        $frontFile = $this->getContainer()->getParameter('kernel.root_dir') . '/Resources/files/design6_printpage1.pdf';
+        $rearFile = $this->getContainer()->getParameter('kernel.root_dir') . '/Resources/files/design6_printpage2.pdf';
+        $imageWidth = 110;
+        $imageHeight = 152;
+        $colCount = 4;
+        $rowCount = 2;
+
+        if (!is_readable($frontFile)) {
+            throw new FileNotReadableException($frontFile);
+        }
+
+        if (!is_readable($rearFile)) {
+            throw new FileNotReadableException($rearFile);
+        }
+
+        $marginX = round(($pageWidth - ($colCount * $imageWidth)) / 2);
+        $marginY = round(($pageHeight - ($rowCount * $imageHeight)) / 2);
+
+        $pdf = new FPDI('L', 'mm', array($pageWidth, $pageHeight));
+
+        $pdf->AddPage();
+        $pdf->setSourceFile($frontFile);
+        $tplIdx = $pdf->importPage(1);
+        $this->renderPage($pdf, $tplIdx, $rowCount, $colCount, $imageWidth, $imageHeight, $marginX, $marginY);
+
+        $pdf->AddPage();
+        $pdf->setSourceFile($rearFile);
+        $tplIdx = $pdf->importPage(1);
+        $this->renderPage($pdf, $tplIdx, $rowCount, $colCount, $imageWidth, $imageHeight, $marginX, $marginY);
+
+        $fileName = $this->getContainer()->getParameter('kernel.root_dir') . '/Resources/files/fpdi.pdf';
+        $pdf->Output($fileName, 'F');
 
         $output->writeln('Finish generating');
+        $output->writeln(
+            'File can be found here:' .
+            $this->getContainer()->getParameter('kernel.root_dir') .
+            '/Resources/files/fpdi.pdf'
+        );
 
         return 0;
+    }
+
+    private function renderPage(FPDI $pdf, $tplIdx, $rowCount, $colCount, $imageWidth, $imageHeight, $marginX, $marginY)
+    {
+        for ($row = 1; $row <= $rowCount; $row++) {
+            for ($col = 1; $col <= $colCount; $col++) {
+                $x = $marginX + ($col * $imageWidth) - $imageWidth;
+                $y = $marginY + ($row * $imageHeight) - $imageHeight;
+                $pdf->useTemplate($tplIdx, $x, $y);
+
+                if ($row == 1) {
+                    $pdf->Line($x + 2, $y - 4, $x + 2, $y);
+                    $pdf->Line($x + $imageWidth - 2, $y - 4, $x + $imageWidth - 2, $y);
+                }
+
+                if ($row == $rowCount) {
+                    $pdf->Line($x + 2, $y + $imageHeight + 4, $x + 2, $y + $imageHeight);
+                    $pdf->Line($x + $imageWidth - 2, $y + $imageHeight + 4, $x + $imageWidth - 2, $y + $imageHeight);
+                }
+
+                if ($col == 1) {
+                    $pdf->Line($x - 4, $y + 2, $x, $y + 2);
+                    $pdf->Line($x - 4, $y + $imageHeight - 2, $x, $y + $imageHeight - 2);
+                }
+
+                if ($col == $colCount) {
+                    $pdf->Line($x + $imageWidth + 4, $y + 2, $x + $imageWidth, $y + 2);
+                    $pdf->Line($x + $imageWidth + 4, $y + $imageHeight - 2, $x + $imageWidth, $y + $imageHeight - 2);
+                }
+            }
+        }
     }
 }
