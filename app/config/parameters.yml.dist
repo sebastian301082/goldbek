@@ -1,0 +1,9 @@
+parameters:
+    database_driver:   mysql
+    database_host:     127.0.0.1
+    database_name:     log_thoss
+    database_user:     root
+    database_password: ~
+
+    locale:            en
+    secret:            ThisTokenIsNotSoSecretChangeIt
